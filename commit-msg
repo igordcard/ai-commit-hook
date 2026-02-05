@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#
+# Global commit-msg hook — calls Claude Code to review every commit.
+# Install via: ~/ai-commit-hook/install.sh
+# Bypass with: git commit --no-verify
+#
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+
+# ── Gather context ──────────────────────────────────────────────────
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+REPO_NAME="$(basename "$REPO_ROOT")"
+BRANCH="$(git branch --show-current 2>/dev/null || echo "detached")"
+COMMIT_MSG="$(cat "$COMMIT_MSG_FILE")"
+FILE_LIST="$(git diff --cached --name-status)"
+DIFF="$(git diff --cached)"
+
+# Nothing staged? Let git handle the error.
+if [ -z "$DIFF" ]; then
+    exit 0
+fi
+
+# ── Guard against huge diffs ────────────────────────────────────────
+MAX_LINES=20000
+DIFF_LINES="$(echo "$DIFF" | wc -l | tr -d ' ')"
+TRUNCATED=""
+if [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
+    DIFF="$(echo "$DIFF" | head -n "$MAX_LINES")"
+    TRUNCATED="[WARNING: Diff truncated from $DIFF_LINES to $MAX_LINES lines]"
+fi
+
+# ── Build the prompt ────────────────────────────────────────────────
+PROMPT="You are a senior code reviewer. Analyze this Git commit and provide a SHORT report (max 10 lines).
+
+Repository: ${REPO_NAME}
+Branch: ${BRANCH}
+
+== Commit Message ==
+${COMMIT_MSG}
+
+== Files Changed ==
+${FILE_LIST}
+
+== Diff ==
+${DIFF}
+${TRUNCATED}
+
+Review checklist:
+- Does the commit message accurately describe the changes?
+- Any obvious bugs, logic errors, or typos in the code?
+- Any security concerns (secrets, injection, unsafe operations)?
+- Any leftover debug code (console.log, print, TODO)?
+
+Format:
+SUMMARY: One-line overall assessment
+ISSUES: Bulleted list of concerns (or \"None found\")
+SUGGESTIONS: Bulleted list of optional improvements (or \"Looks good\")"
+
+# ── Call Claude Code ────────────────────────────────────────────────
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo "  Claude Code Review  ·  ${REPO_NAME} @ ${BRANCH}"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+
+REVIEW="$(claude -p "$PROMPT" --output-format text --max-turns 1 --no-input 2>&1)" || {
+    echo "⚠  Claude review failed (exit $?). Proceeding with commit."
+    echo "$REVIEW"
+    # Don't block commits if Claude is unavailable
+    exit 0
+}
+
+echo "$REVIEW"
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+
+# ── Prompt user ─────────────────────────────────────────────────────
+printf "\nProceed with commit? [Y/n] "
+read -r REPLY </dev/tty || REPLY=""
+
+case "$REPLY" in
+    [nNaA]*)
+        echo "Commit aborted by user."
+        exit 1
+        ;;
+    *)
+        echo "Continuing with commit."
+        ;;
+esac
+
+# ── Chain to local repo hook if it exists ───────────────────────────
+LOCAL_HOOK="${REPO_ROOT}/.git/hooks/commit-msg"
+if [ -x "$LOCAL_HOOK" ]; then
+    exec "$LOCAL_HOOK" "$@"
+fi
