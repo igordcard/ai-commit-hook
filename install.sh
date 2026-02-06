@@ -7,8 +7,17 @@ set -euo pipefail
 HOOKS_DIR="$HOME/.config/git/hooks"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOOK_SRC="${SCRIPT_DIR}/commit-msg"
+CONFIG_FILE="${SCRIPT_DIR}/config.conf"
+
+# ── Load configuration ────────────────────────────────────────────
+MODEL="sonnet"  # default
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck source=config.conf
+    source "$CONFIG_FILE"
+fi
 
 echo "Installing Claude Code commit-msg hook..."
+echo "  Model: ${MODEL}"
 
 # Verify the hook source exists
 if [ ! -f "$HOOK_SRC" ]; then
@@ -27,8 +36,8 @@ fi
 # Create the global hooks directory
 mkdir -p "$HOOKS_DIR"
 
-# Copy the hook
-cp "$HOOK_SRC" "${HOOKS_DIR}/commit-msg"
+# Install the hook with config values baked in
+sed "s/__MODEL__/${MODEL}/g" "$HOOK_SRC" > "${HOOKS_DIR}/commit-msg"
 chmod +x "${HOOKS_DIR}/commit-msg"
 
 # Set git global hooks path
@@ -37,6 +46,7 @@ git config --global core.hooksPath "$HOOKS_DIR"
 echo ""
 echo "Done! Installed to: ${HOOKS_DIR}/commit-msg"
 echo "Global core.hooksPath set to: ${HOOKS_DIR}"
+echo "Configured model: ${MODEL}"
 echo ""
 echo "NOTE: Per-repo hooks in .git/hooks/ are now superseded by the"
 echo "      global hooks path. The commit-msg hook will chain to any"

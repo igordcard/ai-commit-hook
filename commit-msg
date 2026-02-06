@@ -6,6 +6,8 @@
 #
 set -euo pipefail
 
+MODEL="__MODEL__"
+
 COMMIT_MSG_FILE="$1"
 
 # ── Gather context ──────────────────────────────────────────────────
@@ -64,7 +66,7 @@ echo "  Claude Code Review  ·  ${REPO_NAME} @ ${BRANCH}"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 
-REVIEW="$(claude -p "$PROMPT" --output-format text --max-turns 1 2>&1)" || {
+REVIEW="$(claude -p "$PROMPT" --model "$MODEL" --output-format text --max-turns 1 2>&1)" || {
     echo "⚠  Claude review failed (exit $?). Proceeding with commit."
     echo "$REVIEW"
     # Don't block commits if Claude is unavailable

@@ -15,6 +15,17 @@ On every `git commit`, the hook:
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
 
+## Configuration
+
+Edit `config.conf` before installing to customize behavior:
+
+```bash
+# Model to use for commit reviews (e.g., sonnet, opus, haiku)
+MODEL=sonnet
+```
+
+Values are baked into the hook at install time. After changing `config.conf`, re-run `./install.sh` to apply.
+
 ## Install
 
 ```bash
@@ -23,7 +34,8 @@ cd ~/ai-commit-hook
 ```
 
 This will:
-- Copy the hook to `~/.config/git/hooks/commit-msg`
+- Read configuration from `config.conf`
+- Install the hook to `~/.config/git/hooks/commit-msg` with config values baked in
 - Set `git config --global core.hooksPath ~/.config/git/hooks`
 
 ## Bypass
@@ -47,3 +59,17 @@ rm ~/.config/git/hooks/commit-msg
 - If Claude is unavailable, the commit proceeds without blocking
 - If a local `.git/hooks/commit-msg` hook exists, it is chained after the review
 - The prompt asks Claude to check for: message accuracy, bugs, security issues, and leftover debug code
+
+## Project Structure
+
+```
+ai-commit-hook/
+  commit-msg              # The hook script (template with placeholders)
+  install.sh              # Installation helper (substitutes config, sets hooksPath)
+  config.conf             # Install-time configuration
+  README.md               # This file
+  CLAUDE.md               # Project conventions for Claude
+  plans/                  # Implementation plans
+    PLAN-001.md
+    PLAN-002.md
+```
