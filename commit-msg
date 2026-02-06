@@ -64,7 +64,7 @@ echo "  Claude Code Review  ·  ${REPO_NAME} @ ${BRANCH}"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 
-REVIEW="$(claude -p "$PROMPT" --output-format text --max-turns 1 --no-input 2>&1)" || {
+REVIEW="$(claude -p "$PROMPT" --output-format text --max-turns 1 2>&1)" || {
     echo "⚠  Claude review failed (exit $?). Proceeding with commit."
     echo "$REVIEW"
     # Don't block commits if Claude is unavailable
