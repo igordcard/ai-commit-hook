@@ -81,7 +81,11 @@ read -r REPLY </dev/tty || REPLY=""
 
 case "$REPLY" in
     [nNaA]*)
-        echo "Commit aborted by user."
+        echo ""
+        echo "Commit aborted. Your commit message was:"
+        echo "───────────────────────────────────────────"
+        echo "$COMMIT_MSG"
+        echo "───────────────────────────────────────────"
         exit 1
         ;;
     *)
